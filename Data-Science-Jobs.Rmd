@@ -1,0 +1,1018 @@
+---
+title: "Data Science Jobs Report"
+author: "by Daniel Ohinoyi Bamidele"
+
+output: 
+  flexdashboard::flex_dashboard:
+    
+    social: [ "twitter", "linkedin" ]
+    source_code: embed
+    vertical_layout: scroll
+    orientation: columns
+    theme: 
+     fg : "#000000"
+     bg: "#FBFBFB"  
+     navbar-bg: "#155264"
+     sidebar-bg: "#155264"
+     
+     smart: false
+runtime: shiny
+---
+<style type="text/css"> 
+
+.navbar-brand {
+  font-family: "TW Cen MT" ;
+  font-size: 40px;
+  
+}
+.sidebar { 
+  font-family: "TW Cen MT" ;
+  font-size: 16px;
+  color: white;;
+}
+.chart-title {  /* chart_title  */
+   font-size: 30px;
+   font-family: Tw Cen MT;
+   text-align:center;
+   border-color: white;
+   background-color: white;
+   padding: 0px;
+   
+</style>
+
+```{r include=FALSE}
+# Lines 21 to 41 of this document spells out custom styling for elements of the dash board like the side bar etc.
+
+# Load libraries
+
+library(shiny)
+library(knitr)
+library(tidyverse)
+library(flexdashboard)
+library(knitr)
+library(ggplot2)
+library(dplyr)
+library(ggtext)
+library(bslib)
+library(ggforce)
+library(extrafont)
+library(RColorBrewer)
+library(rsconnect)
+
+
+# Load and prepare data 
+
+ds = read.csv("cleaned_ds_salaries.csv", header = T)
+
+ds$year = sapply(ds$work_year, switch,"01/01/2020" = 2020, "01/01/2021" = 2021, "01/01/2022" = 2022)
+ds = ds %>% mutate(experience_level = as.factor(experience_level))
+
+options(scipen = 999)             # Modify global options in R
+
+```
+
+
+{data-orientation=rows}
+=====================================
+
+Sidebar {.sidebar data-width=150} 
+----------------------------------
+
+```{r}
+# This section defines the filter parameters which will be on the sidebar of our dashboard
+
+## This defines the "year" filter as a drop-down list
+
+selectInput(inputId = "year", label = h4("Year"), 
+    choices = c("All", "2020","2021","2022"),
+    selected = c("All"))
+
+## This defines the "Experience level" filter as a group of radio buttons
+
+radioButtons("experience_level", label = h3("Experience Level"),
+             choices = list("All", "Entry level", "Mid level",
+                            "Senior level","Executive level"),
+             selected = c("All"))
+
+
+```
+
+
+
+Row {data-height= 70}
+----------------------------------
+
+### <font style="text-align: center;font-size: 18px ; font-family: Tw Cen MT" > </font>
+
+```{r}
+# Notice that each code chunk starts with ```{r}and ends with ```
+
+# This "<font style="text-align: center;font-size: 18px ; font-family: Tw Cen MT" > </font>" is a HTML statement that can be used to format the title of this code chunk. 
+# I didn't use this for formatting. I merely used it as a placeholder for an empty title
+
+#renderValueBox is used to render KPI-card-like boxes just like in Power BI.  This value box is for the average salary per year KPI.
+
+renderValueBox({
+  
+  # This first if statement is used to display the average salary per year when the user selects "All" for both the 'year' and 'experience level' filter parameters   
+if  (input$year == "All" && input$experience_level == "All"){
+  
+  # This part subsets the data to meet the condition set in the if statement
+  d1 = ds %>% select(salary_in_usd) %>% summarise(avg = mean(salary_in_usd))
+  
+  # This is the actual value box. Here we customise how it will be displayed on the dashboard.
+  valueBox(value = tags$p((paste0("$ ", round((d1/1000),0), " K")), # I added styling (text alignment) hence the tags$p(...) statement. 
+                           style = "text-align: center;"), # justifying the text in the value box to the center
+           caption = tags$p("Average Salary per Year", # the caption underneath the value displayed in the value box. This was also styled to center the text. The font size and font family was also set here. 
+                           style = "text-align: center;  
+                                    font-family: Tw Cen MT; 
+                                    font-size: 22px; "),
+           color = "#FFFFFF") # color of the value box background  
+  }
+  
+  # This else if statement displays the average salary when the user sets "All" for the year filter and any experience level 
+else if (input$year %in% "All" && input$experience_level %in% input$experience_level) {
+  
+  # This part subsets the data to meet the condition set in the if statement
+  d2  <-   ds %>% filter(experience_level %in% input$experience_level)
+  
+  # calculate the average salary 
+  av_sal <- floor(mean(d2$salary_in_usd))
+  
+  # This is the actual value box. Here we customize how it will be displayed on the dashboard. Same customization as the first value box.
+  valueBox(value = tags$p((paste0("$ ", round((av_sal/1000),0), " K")),
+                           style = "text-align: center;"),
+           caption = tags$p("Average Salary per Year",
+                           style = "text-align: center; 
+                                    font-family: Tw Cen MT; 
+                                    font-size: 22px; "),
+           color = "#FFFFFF")}
+  
+  # This else if statement displays the average salary when the user sets "All" for the experience level filter and any year 
+else if (input$year %in% input$year && input$experience_level %in% "All") {
+  
+  # This part subsets the data to meet the condition set in the if statement
+  d2  <-   ds %>% filter(year %in% input$year) 
+  
+  # calculate the average salary 
+  av_sal <- floor(mean(d2$salary_in_usd))
+  
+  # Here we customize how the value box will be displayed on the dashboard. Same customization as the first value box.
+  valueBox(value = tags$p((paste0("$ ", round((av_sal/1000),0), " K")),
+                           style = "text-align: center;"),
+           caption = tags$p("Average Salary per Year",
+                           style = "text-align: center; 
+                                    font-family: Tw Cen MT; 
+                                    font-size: 22px; "),
+           color = "#FFFFFF")
+  }
+  
+  # This else statement displays the average salary when the user applies a filter for both the year and experience level parameters 
+else {
+  
+  # This part subsets the data to meet the condition set in the if statement
+  d2  <-   ds %>% 
+                filter(year %in% input$year, # filter the year wrt to the input of the user
+                experience_level %in% input$experience_level) # filter the experience level wrt to the input of the user
+  
+  # calculate the average salary 
+  av_sal <- floor(mean(d2$salary_in_usd))
+  
+  # Here we customize how the value box will be displayed on the dashboard. Same customization as the first value box.
+  valueBox(value = tags$p((paste0("$ ", round((av_sal/1000),0), " K")),
+                           style = "text-align: center;"),
+           caption = tags$p("Average Salary per Year",
+                           style = "text-align: center; 
+                                    font-family: Tw Cen MT; 
+                                    font-size: 22px; "),
+           color = "#FFFFFF")
+}
+  
+  })
+
+ 
+```
+
+### <font style="font-size: 18px ; font-family: Tw Cen MT" ></font>
+
+```{r}
+
+#renderValueBox is used to render KPI-card-like boxes just like in Power BI.  This value box is for the total roles KPI. 
+renderValueBox({
+  
+  # This first if statement is used to display the average salary per year when the user selects "All" for both the 'year' and 'experience level' filter parameters   
+  if  (input$year == "All" && input$experience_level == "All"){
+    
+    # This part subsets the data to meet the condition set in the if statement and calculates the total roles
+    roles = ds %>% select(job_title) %>% unique() %>% nrow()
+    
+    # Here we customize how the value box will be displayed on the dashboard. 
+    valueBox(value = tags$p(roles,
+                           style = "text-align: center;"), # justifying the text in the value box to the center
+           caption = tags$p("Total Roles",
+                           style = "text-align: center; 
+                                    font-family: Tw Cen MT; 
+                                    font-size: 22px; "), # setting the font style, size and justification for the value box caption
+           color = "#FFFFFF") # color of the value box background
+  }
+  
+  # This else if statement displays the total roles when the user sets "All" for the experience level filter and any year 
+  else if (input$year %in% input$year && input$experience_level == "All"){
+    
+    # This part subsets the data to meet the condition set in the if statement 
+    d1 = ds %>% filter(year %in% input$year) %>% select(job_title) %>% unique() 
+    
+    # calculate the total roles
+    roles = count(d1)
+    
+    # Here we customize how the value box will be displayed on the dashboard. 
+    valueBox(value = tags$p(roles,
+                           style = "text-align: center;"),
+           caption = tags$p("Total Roles",
+                           style = "text-align: center; 
+                                    font-family: Tw Cen MT; 
+                                    font-size: 22px; "),
+           color = "#FFFFFF")
+    }
+  
+  # This else if statement displays the total roles when the user sets "All" for the year filter and any experience level 
+  else if (input$year == "All" && input$experience_level %in% input$experience_level){
+    
+    # This part subsets the data to meet the condition set in the if statement     
+    d1 = ds %>% filter(experience_level %in% input$experience_level) %>%
+          select(job_title) %>% unique()
+    
+    # calculate the total roles
+    roles = count(d1)
+    
+    # Here we customize how the value box will be displayed on the dashboard. 
+    valueBox(value = tags$p(roles,
+                           style = "text-align: center;"),
+           caption = tags$p("Total Roles",
+                           style = "text-align: center; 
+                                    font-family: Tw Cen MT; 
+                                    font-size: 22px; "),
+           color = "#FFFFFF")
+  }
+  
+  # This else statement displays the average salary when the user applies a filter for both the year and experience level parameters 
+  else {
+    
+    # This part subsets the data to meet the condition set in the if statement  
+    d1 = ds %>% filter(year %in% input$year,
+           experience_level %in% input$experience_level) %>%
+          select(job_title) %>% unique()
+    
+    # calculate the total roles  
+    roles = count(d1)
+    
+    # Here we customize how the value box will be displayed on the dashboard. 
+    valueBox(value = tags$p(roles,
+                           style = "text-align: center;"),
+           caption = tags$p("Total Roles",
+                           style = "text-align: center; 
+                                    font-family: Tw Cen MT; 
+                                    font-size: 22px; "),
+           color = "#FFFFFF")
+  }
+  
+  })
+
+```
+
+### <font style="font-size: 18px ; font-family: Tw Cen MT" ></font>
+
+```{r}
+#renderValueBox is used to render KPI-card-like boxes just like in Power BI.  This value box is for the number of countries KPI. No filter was applied here 
+renderValueBox({
+  
+# This part subsets the data to calculate the number of countries in the dataset   
+countries = ds %>% select(company_location) %>% unique() %>% nrow()
+
+# Here we customize how the value box will be displayed on the dashboard. 
+valueBox(value = tags$p(countries,
+                           style = "text-align: center;"),
+           caption = tags$p("Countries",
+                           style = "text-align: center; 
+                                    font-family: Tw Cen MT; 
+                                    font-size: 22px; "),
+           color = "#FFFFFF")}
+
+)
+```
+
+Row
+----------------------------------
+
+### <font style="font-family: Tw Cen MT" ></font> 
+
+```{r}
+# I used this value box as a header row. It just displays the "Average Salary by Employment Type" heading.
+# Here we customize how the value box will be displayed on the dashboard. 
+
+valueBox(value = NULL, # value is set to NULL. I only needed the caption.
+         caption = tags$p("Average Salary by Employment Type", 
+                        style = "text-align: center;
+                                 font-family: Tw Cen MT; 
+                                 font-size: 30px;
+                                 ") , 
+         color = "#FFFFFF")
+
+```
+
+Row {data-height=120}
+----------------------------------
+### Full-time
+```{r}
+#renderPlot is used to render charts and plots. For this section of the dashboard I used geom_text from ggplot to display average salaries by employment type. 
+
+renderPlot({
+  
+  #The same format for earlier if, else if and else statements were used here.
+  if (input$year == "All" && input$experience_level == "All"){
+    
+  # This part subsets the data to calculate the average salary based on filter parameters  
+  avg_salary_ft = ds %>% filter(employment_type == "Full-time") %>% summarise(avg = floor(mean(salary_in_usd)))
+  
+  # This part constructs our plot using the filter conditions 
+  ggplot() +
+   theme_minimal() + 
+   geom_text(data = avg_salary_ft, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = paste0("$", round((avg_salary_ft/1000),0), " K")), size = 12) +
+   xlab("") + ylab("") +
+   theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  
+  else if (input$year == "All" && input$experience_level %in% input$experience_level){
+    
+    # This part subsets the data to calculate the average salary based on filter parameters 
+    avg_salary_ft = ds %>% filter(experience_level %in% input$experience_level, 
+                                  employment_type == "Full-time") %>%
+      summarise(avg = floor(mean(salary_in_usd)))
+    
+    # This part constructs our plot using the filter conditions 
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_ft, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = paste0("$", round((avg_salary_ft/1000),0), " K")), size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  
+  else if (input$year %in% input$year && input$experience_level == "All"){
+    
+    # This part subsets the data to calculate the average salary based on filter parameters 
+    avg_salary_ft = ds %>% filter(year %in% input$year, 
+                                  employment_type == "Full-time") %>%
+      summarise(avg = floor(mean(salary_in_usd)))
+    
+    # This part constructs our plot using the filter conditions 
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_ft, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = paste0("$", round((avg_salary_ft/1000),0), " K")), size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  else {
+    
+    # This part subsets the data to calculate the average salary based on filter parameters 
+    avg_salary_ft = ds %>% filter(year %in% input$year, 
+                                  experience_level %in% input$experience_level, 
+                                  employment_type == "Full-time") %>%
+      summarise(avg = floor(mean(salary_in_usd)))
+    
+    # This part constructs our plot using the filter conditions
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_ft, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = paste0("$", round((avg_salary_ft/1000),0), " K")), size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+    
+  
+})
+```   
+
+### Contract
+```{r}
+# This section is quite similar to the Full time section but I'll add comments where necessary.
+
+# From here on out, there is a lot of repeated code with mostly variable name changes depending on the section/chunk.
+
+renderPlot({
+  
+  if (input$year == "All" && input$experience_level == "All"){
+    avg_salary_ct = ds %>% filter(employment_type == "Contract") %>% summarise(avg = floor(mean(salary_in_usd)))
+    
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_ct, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = paste0("$", round((avg_salary_ct/1000),0), " K")), size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  
+  else if (input$year == "All" && input$experience_level %in% input$experience_level){
+    
+    avg_salary_ct = ds %>% filter(experience_level %in% input$experience_level,
+                                  employment_type == "Contract") %>% 
+                           summarise(avg = floor(mean(salary_in_usd)))
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_ct, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = paste0("$", round((avg_salary_ct/1000),0), " K")), size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  
+  else if (input$year %in% input$year && input$experience_level == "All"){
+    
+    avg_salary_ct = ds %>% filter(year %in% input$year,
+                              employment_type == "Contract") %>% 
+    summarise(avg = floor(mean(salary_in_usd)))
+    
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_ct, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = paste0("$", round((avg_salary_ct/1000),0), " K")), size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  
+  else {
+    
+    avg_salary_ct = ds %>% filter(year %in% input$year,
+                                  experience_level %in% input$experience_level,
+                                  employment_type == "Contract") %>% 
+                    summarise(av = ifelse(is.nan(floor(mean(salary_in_usd))) == T, "No data", floor(mean(salary_in_usd)))) 
+    # Very important!! 
+    # there were instances where data was missing for certain filter combinations. For example there were no contract executive roles in the data set
+    # the ifelse function helps me insert 'No data' in instances when the data was missing and leave as the mean when there was data. 
+    # PS; it might be better to use this approach for all sections of your code in case you're working with a data set where you can't know where
+    # data is missing for certain filter conditions. This is similar to IFERROR in Excel.
+    
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_ct, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = ifelse(avg_salary_ct == "No data", "No Data", 
+                                paste0("$", round((avg_salary_ct/1000),0), " K"))) 
+                                , size = 12)  + 
+      # I also made sure the label followed suit by using the same ifelse function to insert 'No Data' as the label when there was no data.
+      # paste0("$", round((avg_salary_ct/1000),0), " K")) means I want to concatenate the dollar sign $ and a rounded version of the avg_salary and        # then ' K' as my label
+      
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+}
+  
+})
+            
+```
+
+### Part-time
+```{r}
+# More repeated code 
+renderPlot({
+  
+  if (input$year == "All" && input$experience_level == "All"){
+    avg_salary_pt = ds %>% filter(employment_type == "Part-time") %>% 
+      summarise(av = ifelse(is.nan(floor(mean(salary_in_usd))) == T, "No data", floor(mean(salary_in_usd))))
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_pt, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = paste0("$", round((avg_salary_pt/1000),0), " K")), size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+            
+  }
+  
+  else if (input$year == "All" && input$experience_level %in% input$experience_level){
+    avg_salary_pt = ds %>% filter(experience_level %in% input$experience_level,
+                                  employment_type == "Part-time") %>% 
+                           summarise(av = ifelse(is.nan(floor(mean(salary_in_usd))) == T, "No data",
+                                                 floor(mean(salary_in_usd))))
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_pt, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = ifelse(avg_salary_pt == "No data", "No Data", 
+                                paste0("$", round((avg_salary_pt/1000),0), " K"))) 
+                                , size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  
+  else if (input$year %in% input$year  && input$experience_level %in% "All"){
+    
+    avg_salary_pt = ds %>% filter(year %in% input$year,
+                                  employment_type == "Part-time") %>% 
+                           summarise(av = ifelse(is.nan(floor(mean(salary_in_usd))) == T, "No data",
+                                                 floor(mean(salary_in_usd))))
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_pt, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = ifelse(avg_salary_pt == "No data", "No Data", 
+                                paste0("$", round((avg_salary_pt/1000),0), " K"))) 
+                                , size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  
+  else {
+    
+    avg_salary_pt = ds %>% filter(year %in% input$year,
+                                  experience_level %in% input$experience_level,
+                                  employment_type == "Part-time") %>% 
+                           summarise(av = ifelse(is.nan(floor(mean(salary_in_usd))) == T, "No data",
+                                                 floor(mean(salary_in_usd))))
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_pt, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = ifelse(avg_salary_pt == "No data", "No Data", 
+                                paste0("$", round((avg_salary_pt/1000),0), " K"))) 
+                                , size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  
+})
+```
+
+### Freelance
+```{r}
+# even more repeated code
+renderPlot({
+  
+  if (input$year == "All" && input$experience_level == "All"){
+    
+    avg_salary_fl = ds %>% filter(employment_type == "Freelance") %>% summarise(avg = floor(mean(salary_in_usd)))
+
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_fl, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = paste0("$", round((avg_salary_fl/1000),0), " K")), size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  
+  else if (input$year %in% "All" && input$experience_level %in% input$experience_level) {
+    
+    avg_salary_fl = ds %>% filter(experience_level %in% input$experience_level,
+                                  employment_type == "Freelance") %>% 
+                           summarise(av = ifelse(is.nan(floor(mean(salary_in_usd))) == T, "No data",
+                                                 floor(mean(salary_in_usd))))
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_fl, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = ifelse(avg_salary_fl == "No data", "No Data", 
+                                paste0("$", round((avg_salary_fl/1000),0), " K"))) 
+                                , size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  else if (input$year %in% input$year && input$experience_level %in% "All") {
+    
+    avg_salary_fl = ds %>% filter(year %in% input$year,
+                                  employment_type == "Freelance") %>% 
+                           summarise(avg = floor(mean(salary_in_usd)))
+    ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_fl, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = paste0("$", round((avg_salary_fl/1000),0), " K")), size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  
+  else {
+    avg_salary_fl = ds %>% filter(year %in% input$year,
+                                  experience_level %in% input$experience_level,
+                                  employment_type == "Freelance") %>% 
+                           summarise(av = ifelse(is.nan(floor(mean(salary_in_usd))) == T, "No data",
+                                                 floor(mean(salary_in_usd))))
+      ggplot() +
+      theme_minimal() + 
+      geom_text(data = avg_salary_fl, 
+             aes(family = "Tw Cen MT", 
+                 fontface = "bold", x = 2, y = 2, 
+                 label = ifelse(avg_salary_fl == "No data", "No Data", 
+                                paste0("$", round((avg_salary_fl/1000),0), " K"))) 
+                                , size = 12) +
+      xlab("") + ylab("") +
+      theme(legend.position = "none",
+            axis.text.y = element_blank(), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank())
+  }
+  
+})
+            
+```
+
+Row 
+----------------------------------
+### Top 5 Countries by Yearly Average Salary
+```{r}
+# For the bar charts I used geom_col and geom_bar (don't ask why I used both when I could have used one). 
+# But the code here is also similar to the above chunks. Same logic for the if, else if and else statements. 
+# Anywhere you see # before an actual line of code is where I was experimenting. I probably commented those out because I didn't like the results.
+
+renderPlot({
+  
+if (input$year %in%  "All" && input$experience_level %in% "All") {
+  
+  # This part subsets the data to be able to plot the Top 5 Countries by Yearly Average Salary based on filter parameters 
+  h1= ds %>% group_by(company_location) %>% 
+    summarise(avg_salary = round(mean(salary_in_usd),-3)) %>% 
+    arrange(desc(avg_salary)) %>% 
+    mutate(label = paste0("$",avg_salary/1000, "K")) %>%  head(5) 
+  
+  # This part is for constructing our bar chart  
+  p1=  ggplot(data = h1, aes(x = reorder(company_location, avg_salary) # sort in decscending order
+                             ,y = avg_salary)) + 
+      #geom_bar( stat="identity", fill = "#FFAB4D") + 
+      geom_col(fill= "#BCCED6", width = 0.3) + 
+      xlab("") + ylab("") + #ylim(c(0,300000)) + 
+      theme_minimal() + 
+      geom_text(data = h1, size = 8, aes(label = label, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+      theme(legend.position = "none",
+            
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+            
+      ) +
+      coord_flip() #so that the bars will be oriented horizontally
+ p1 
+ 
+}
+
+  else if (input$year %in%  "All" && input$experience_level %in% input$experience_level) {
+    
+    # This part subsets the data to be able to plot the Top 5 Countries by Yearly Average Salary based on filter parameters
+    h1= ds %>% filter(experience_level %in% input$experience_level) %>% 
+      group_by(company_location) %>% 
+      summarise(avg_salary = round(mean(salary_in_usd),-3)) %>% 
+      arrange(desc(avg_salary)) %>% 
+      mutate(label = paste0("$",avg_salary/1000, "K")) %>%  head(5)
+    
+    # This part is for constructing our bar chart 
+    p1=  ggplot(data = h1, aes(x = reorder(company_location, avg_salary), y = avg_salary)) + 
+      #geom_bar( stat="identity", fill = "#FFAB4D") + 
+      geom_col(fill= "#BCCED6", width = 0.3) + 
+      xlab("") + ylab("") + #ylim(c(0,300000)) + 
+      theme_minimal() + 
+      geom_text(data = h1, size = 8, aes(label = label, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+      theme(legend.position = "none",
+            
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+            
+      ) +
+      coord_flip()
+  p1
+    
+  }
+  
+   else if (input$year %in% input$year && input$experience_level %in% "All") {
+     
+    # This part subsets the data to be able to plot the Top 5 Countries by Yearly Average Salary based on filter parameters
+    h1= ds %>% filter(year %in% input$year) %>%  
+      group_by(company_location) %>% 
+      summarise(avg_salary = round(mean(salary_in_usd),-3)) %>% 
+      arrange(desc(avg_salary)) %>% 
+      mutate(label = paste0("$",avg_salary/1000, "K")) %>%  head(5)
+    
+    # This part is for constructing our bar chart 
+    p1=  ggplot(data = h1, aes(x = reorder(company_location, avg_salary), y = avg_salary)) + 
+      #geom_bar( stat="identity", fill = "#FFAB4D") + 
+      geom_col(fill= "#BCCED6", width = 0.3) + 
+      xlab("") + ylab("") + #ylim(c(0,300000)) + 
+      theme_minimal() + 
+      geom_text(data = h1,  size = 8, aes(label = label, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+      theme(legend.position = "none",
+            
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+            
+      ) +
+      coord_flip()
+  p1
+    
+  }
+  
+  else {
+    # This part subsets the data to be able to plot the Top 5 Countries by Yearly Average Salary based on filter parameters
+    h1= ds %>% 
+      filter(year %in% input$year,
+             experience_level %in% input$experience_level) %>%  
+      group_by(company_location) %>% 
+      summarise(avg_salary = round(mean(salary_in_usd),-3)) %>% 
+      arrange(desc(avg_salary)) %>% 
+      mutate(label = paste0("$",avg_salary/1000, "K")) %>%  head(5)
+    
+    # This part is for constructing our bar chart 
+  p1=  ggplot(data = h1, aes(x = reorder(company_location, avg_salary), y = avg_salary)) + 
+      #geom_bar( stat="identity", fill = "#FFAB4D") + 
+      geom_col(fill= "#BCCED6", width = 0.3) + 
+      xlab("") + ylab("") + #ylim(c(0,330000)) + 
+      theme_minimal() + 
+      geom_text(data = h1, size = 8, aes(label = label, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+      theme(legend.position = "none",
+            
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+            
+      ) +
+      coord_flip()
+  p1
+    
+  }
+
+})
+```
+
+Row 
+----------------------------------
+
+### Top 5 Roles by Yearly Average Salary
+```{r}
+# repeated code
+
+renderPlot({
+if (input$year %in%  "All" && input$experience_level %in% "All") {
+
+    h2= ds %>% group_by(job_title) %>% summarise(avg_salary = round(mean(salary_in_usd),-3)) %>% 
+               arrange(desc(avg_salary)) %>% 
+               mutate(label = paste0("$",avg_salary/1000, "K")) %>%  head(5)
+
+    p2=  ggplot(data = h2, aes(x = reorder(job_title, avg_salary), y = avg_salary)) + 
+        geom_bar(width = 0.3, stat="identity", fill= "#BCCED6") + 
+        # geom_col(aes(fill= "#FFAB4D")) + 
+        xlab("") + ylab("") + #ylim(c(0,545000)) + 
+        theme_minimal() + 
+        geom_text(data = h2, size = 8, aes(label = label, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+        theme(legend.position = "none",
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+       ) +
+        coord_flip()
+p2
+
+}
+  
+  else if (input$year %in%  "All" && input$experience_level %in% input$experience_level) {
+    
+    h2= ds %>% filter(experience_level %in% input$experience_level) %>% 
+      group_by(job_title) %>% 
+      summarise(avg_salary = round(mean(salary_in_usd),-3)) %>% 
+      arrange(desc(avg_salary)) %>% 
+      mutate(label = paste0("$",avg_salary/1000, "K")) %>%  
+      head(5)
+    
+    p2=  ggplot(data = h2, aes(x = reorder(job_title, avg_salary), y = avg_salary)) + 
+      geom_bar(width = 0.3, stat="identity", fill= "#BCCED6") + 
+     # geom_col(aes(fill= "#FFAB4D")) + 
+      xlab("") + ylab("") + #ylim(c(0,445000)) + 
+      theme_minimal() + 
+      geom_text(data = h2, size = 8, aes(label = label, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+      theme(legend.position = "none",
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+            
+      ) +
+      coord_flip()
+p2
+
+  }
+  
+  else if (input$year %in% input$year && input$experience_level %in% "All") {
+    
+    h2= ds %>% filter(year %in% input$year) %>% 
+      group_by(job_title) %>% 
+      summarise(avg_salary = round(mean(salary_in_usd),-3)) %>% 
+      arrange(desc(avg_salary)) %>% 
+      mutate(label = paste0("$",avg_salary/1000, "K")) %>%  
+      head(5)
+    
+    p2=  ggplot(data = h2, aes(x = reorder(job_title, avg_salary), y = avg_salary)) + 
+      geom_bar(width = 0.3, stat="identity", fill= "#BCCED6") + 
+     # geom_col(aes(fill= "#FFAB4D")) + 
+      xlab("") + ylab("") + #ylim(c(0,445000)) + 
+      theme_minimal() + 
+      geom_text(data = h2, size = 8, aes(label = label, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+      theme(legend.position = "none",
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+            
+      ) +
+      coord_flip()
+p2
+  }
+
+  else {
+    
+    h2= ds %>% filter(experience_level %in% input$experience_level,
+                      year %in% input$year) %>% 
+      group_by(job_title) %>% 
+      summarise(avg_salary = round(mean(salary_in_usd),-3)) %>% 
+      arrange(desc(avg_salary)) %>% 
+      mutate(label = paste0("$",avg_salary/1000, "K")) %>%  
+      head(5)
+    
+    p2=  ggplot(data = h2, aes(x = reorder(job_title, avg_salary), y = avg_salary)) + 
+      geom_bar(width = 0.3, stat="identity", fill= "#BCCED6") + 
+     # geom_col(aes(fill= "#FFAB4D")) + 
+      xlab("") + ylab("") + #ylim(c(0,445000)) + 
+      theme_minimal() + 
+      geom_text(data = h2, size = 8, aes(label = label, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+      theme(legend.position = "none",
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+            
+      ) +
+      coord_flip()
+p2
+  }
+})
+```
+
+
+### Top 5 In-demand Roles
+```{r}
+# even more repeated code
+
+renderPlot({
+if (input$year %in%  "All" && input$experience_level %in% "All") {
+  
+    h3= ds %>% group_by(job_title) %>% summarise(demand = n()) %>% arrange(desc(demand)) %>%  head(5)
+    
+    p3=  ggplot(data = h3, aes(x = reorder(job_title, demand), y = demand)) + 
+      geom_bar(width = 0.3, stat="identity", fill= "#BCCED6") + 
+     # geom_col(aes(fill= "#FFAB4D")) + 
+      xlab("") + ylab("") + #ylim(c(0,170)) + 
+      theme_minimal() + 
+      geom_text(data = h3, size = 8, aes(label = demand, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+      theme(legend.position = "none",
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+            
+      ) +
+      coord_flip()
+p3
+}
+  else if (input$year %in%  "All" && input$experience_level %in% input$experience_level) {
+  
+    h3= ds %>% filter(experience_level %in% input$experience_level) %>% 
+      group_by(job_title) %>% 
+      summarise(demand = n()) %>% 
+      arrange(desc(demand)) %>%  
+      head(5)
+    
+    p3=  ggplot(data = h3, aes(x = reorder(job_title, demand), y = demand)) + 
+      geom_bar(width = 0.3, stat="identity", fill= "#BCCED6") + 
+     # geom_col(aes(fill= "#FFAB4D")) + 
+      xlab("") + ylab("") + #ylim(c(0,170)) + 
+      theme_minimal() + 
+      geom_text(data = h3, size = 8, aes(label = demand, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+      theme(legend.position = "none",
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+            ) +
+      coord_flip()
+p3
+  }
+  
+  else if (input$year %in% input$year && input$experience_level %in% "All") {
+  
+    h3= ds %>% filter(year %in% input$year) %>% 
+      group_by(job_title) %>% 
+      summarise(demand = n()) %>% 
+      arrange(desc(demand)) %>%  
+      head(5)
+    
+    p3=  ggplot(data = h3, aes(x = reorder(job_title, demand), y = demand)) + 
+      geom_bar(width = 0.3, stat="identity", fill= "#BCCED6") + 
+     # geom_col(aes(fill= "#FFAB4D")) + 
+      xlab("") + ylab("") + #ylim(c(0,170)) + 
+      theme_minimal() + 
+      geom_text(data = h3, size = 8, aes(label = demand, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+      theme(legend.position = "none",
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+            ) +
+      coord_flip()
+p3
+  }
+  
+  else {
+  
+    h3= ds %>% filter(year %in% input$year,
+                      experience_level %in% input$experience_level) %>% 
+      group_by(job_title) %>% 
+      summarise(demand = n()) %>% 
+      arrange(desc(demand)) %>%  
+      head(5)
+    
+    p3=  ggplot(data = h3, aes(x = reorder(job_title, demand), y = demand)) + 
+      geom_bar(width = 0.3, stat="identity", fill= "#BCCED6") + 
+     # geom_col(aes(fill= "#FFAB4D")) + 
+      xlab("") + ylab("") + #ylim(c(0,170)) + 
+      theme_minimal() + 
+      geom_text(data = h3, size = 8, aes(label = demand, family = "Tw Cen MT", fontface = "bold"), hjust = "inward") +
+      theme(legend.position = "none",
+            axis.text.y = element_text(face = "bold", family = "Tw Cen MT", size = 18), 
+            axis.text.x = element_blank(),
+            panel.grid = element_blank()
+            ) +
+      coord_flip()
+p3
+  }
+
+})
+
+```
